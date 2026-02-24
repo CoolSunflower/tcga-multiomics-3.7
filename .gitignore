@@ -1,0 +1,7 @@
+Dataset/
+# For dataset & setup see: https://docs.google.com/document/d/1d2ckODzF0_k7BVe08lnxtr6dYIEEwLoNXE_AquImMYc/edit?tab=t.0
+
+AE_models/
+CCSA_data/
+__pycache__/
+*.patch
