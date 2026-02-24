@@ -347,6 +347,7 @@ def normalize_dataset(data):
     for k in data:
         data_new[k] = data[k]
     X = preprocessing.normalize(X)
+    X = X.astype('float32')
     data_new['X'] = X
     
     return data_new
@@ -360,6 +361,7 @@ def standarize_dataset(data):
     scaler = StandardScaler()
     scaler.fit(X)
     X = scaler.transform(X)
+    X = X.astype('float32')
     data_new['X'] = X
     
     return data_new

@@ -274,7 +274,7 @@ class MLP(object):
 
         # Initialize Training Parameters
         lr = theano.shared(numpy.asarray(self.learning_rate,
-                                    dtype = numpy.float64))
+                                    dtype = numpy.float32))
         # momentum = numpy.array(0, dtype= numpy.float32)
 
         train_fn, valid_fn = self.build_finetune_functions(
@@ -354,7 +354,7 @@ class MLP(object):
 
         # Initialize Training Parameters
         lr = theano.shared(numpy.asarray(self.learning_rate,
-                                    dtype = numpy.float64))
+                                    dtype = numpy.float32))
         # momentum = numpy.array(0, dtype= numpy.float32)
 
         train_fn, valid_fn = self.build_finetune_functions(

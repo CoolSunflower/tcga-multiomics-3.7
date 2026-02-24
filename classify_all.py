@@ -76,6 +76,10 @@ def run_cv(seed, fold, X, Y, R, y_strat, G, Gy_strat, GRy_strat,
         Gy_strat_train, Gy_strat_test = Gy_strat[train_index], Gy_strat[test_index]
         GRy_strat_train, GRy_strat_test = GRy_strat[train_index], GRy_strat[test_index]
         
+        # Ensure data is float32 for Theano compatibility
+        X_train = X_train.astype(np.float32)
+        X_test = X_test.astype(np.float32)
+
         if FeatureMethod == 0:  # ANOVA based feature selection
             if k > 0:  # k = features_count from the main function provided by user
                 if len(np.shape(omics_feature)) == 0:  # single omics
