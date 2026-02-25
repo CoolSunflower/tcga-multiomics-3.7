@@ -222,14 +222,14 @@ def main():
         # Standardize dataset
         for key in datasets:
             datasets[key] = standarize_dataset(datasets[key])
-        
+
+        k = -1 # No feature selection by default, so keep all features
+            
         if FeatureMethod==0:
             print('p-Value based Feature selection will be applied')
             dataset = merge_datasets(datasets)
             k = features_count # feature selection to be done for this number
 
-        k = -1 # No feature selection by default, so keep all features
-            
         if FeatureMethod==1:
             print('PCA will be used for Feature extraction')
             

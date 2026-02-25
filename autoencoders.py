@@ -25,7 +25,9 @@ def load_or_train_encoders(omics_feature, folderISAAC, cancer_type, endpoint,
     
     # Initialize dictionaries to store model names and file paths
     AE_json_file_names = {}
+    AE_weights_file_names = {}
     E_json_file_names = {}
+    E_weights_file_names = {}
     encoders = {}
 
     if isinstance(omics_feature, str):
@@ -35,18 +37,26 @@ def load_or_train_encoders(omics_feature, folderISAAC, cancer_type, endpoint,
         AE_ModelName = 'TCGA-' + omics + '-' + str(features_count)
         AE_json_file_name = folderISAAC + 'AE_models/autoencoder_' + str(AutoencoderSettings) + '_' + AE_ModelName + '.json'
         AE_json_file_names[omics] = AE_json_file_name
+        AE_weights_file_name = folderISAAC + 'AE_models/autoencoder_' + str(AutoencoderSettings) + '_' + AE_ModelName + '_weights.npy'
+        AE_weights_file_names[omics] = AE_weights_file_name
         E_json_file_name = folderISAAC + 'AE_models/encoder_' + str(AutoencoderSettings) + '_' + AE_ModelName + '.json'
         E_json_file_names[omics] = E_json_file_name
+        E_weights_file_name = folderISAAC + 'AE_models/encoder_' + str(AutoencoderSettings) + '_' + AE_ModelName + '_weights.npy'
+        E_weights_file_names[omics] = E_weights_file_name
         print(f'AE_ModelName for {omics}: {AE_ModelName}')
         print(f'AE json file name for {omics}: {AE_json_file_name}')
         print(f'Encoder json file name for {omics}: {E_json_file_name}')
     
-        # Check existence of AE model files
-        if os.path.exists(AE_json_file_names[omics]) and os.path.exists(E_json_file_names[omics]):
-            print(f"AE model for {omics} exists. Loading the model.")
+        # Check existence of AE model files (both architecture JSON and weights)
+        if (os.path.exists(AE_json_file_names[omics]) and os.path.exists(E_json_file_names[omics])
+                and os.path.exists(E_weights_file_names[omics])):
+            print(f"AE model for {omics} exists. Loading the model and weights.")
             with open(E_json_file_names[omics], 'r') as json_file:
                 loaded_model_json = json_file.read()
-            encoders[omics] = model_from_json(loaded_model_json)
+            encoder = model_from_json(loaded_model_json)
+            weights = np.load(E_weights_file_names[omics], allow_pickle=True)
+            encoder.set_weights(weights)
+            encoders[omics] = encoder
         else:
             print(f"AE model for {omics} does not exist. Training the model.")
             if omics == 'mRNA':
@@ -95,9 +105,12 @@ def load_or_train_encoders(omics_feature, folderISAAC, cancer_type, endpoint,
             json_model = autoencoder.to_json()
             with open(AE_json_file_names[omics], 'w') as json_file:
                 json_file.write(json_model)
+            np.save(AE_weights_file_names[omics], autoencoder.get_weights())
             json_model = encoder.to_json()
             with open(E_json_file_names[omics], 'w') as json_file:
                 json_file.write(json_model)
+            np.save(E_weights_file_names[omics], encoder.get_weights())
+            print(f"Saved AE and encoder weights for {omics}.")
 
             encoders[omics] = encoder
 
