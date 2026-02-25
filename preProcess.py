@@ -44,11 +44,14 @@ def get_n_years(dataset, years):
     R, G = dataset['R'], dataset['G']
     df['R'] = R
     df['G'] = G
-    df = df[~((df['T'] < 365 * years) & (df['C'] == 1))]
+    df = df[~((df['T'] < 365 * years) & (df['C'] == 1))].reset_index(drop=True)
     df.loc[df['T'] <= 365 * years, 'Y'] = 0
-    df['strat'] = df.apply(lambda row: str(row['Y']) + str(row['R']), axis=1)
-    df['Gstrat'] = df.apply(lambda row: str(row['Y']) + str(row['G']), axis=1)
-    df['GRstrat'] = df.apply(lambda row: str(row['G']) + str(row['Y']) + str(row['R']), axis=1)
+    y_str = df['Y'].astype(int).astype(str)
+    r_str = df['R'].astype(str)
+    g_str = df['G'].astype(str)
+    df['strat'] = y_str + r_str
+    df['Gstrat'] = y_str + g_str
+    df['GRstrat'] = g_str + y_str + r_str
     df = df.reset_index(drop=True)
     R = df['R'].values
     G = df['G'].values
