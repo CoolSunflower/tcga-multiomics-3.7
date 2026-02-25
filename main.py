@@ -224,6 +224,7 @@ def main():
             datasets[key] = standarize_dataset(datasets[key])
 
         k = -1 # No feature selection by default, so keep all features
+        dataset = merge_datasets(datasets)
             
         if FeatureMethod==0:
             print('p-Value based Feature selection will be applied')
