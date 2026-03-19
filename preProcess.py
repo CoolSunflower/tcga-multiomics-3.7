@@ -135,20 +135,22 @@ def get_Methylation(cancer_type, endpoint, groups, genders, FeatureMethod, Featu
     MethylationData_in.index = [row[:12] for row in MethylationData_in.index.values]
     MethylationData_in = MethylationData_in.reset_index().drop_duplicates(subset='index', keep='first').set_index('index')
     
-    if FeatureTrain: # AE
-        
-        if FeatureMethod==2: # AE - Data for training
-        
+    if FeatureTrain: # AE or PCA
+
+        if FeatureMethod in [1, 2]: # AE or PCA - Data for training
+
             MethylationData_in = MethylationData_in.dropna(axis='columns')
             MethylationData_in = MethylationData_in.drop(columns=['TumorType'])
             # Packing the data
             X = MethylationData_in.values
             X = MethylationData_in.astype('float32')
             InputData = {'X': X,
-                         'Samples': MethylationData_in.index.values, 
+                         'Samples': MethylationData_in.index.values,
                          'FeatureName': list(MethylationData_in)}
-            
-    else: # data for execution of ML task
+            return InputData
+
+    # data for execution of ML task
+    if not FeatureTrain:
     
         MethyAncsData = [
             pd.read_excel(MethyAncsDataPath, disease, usecols='A,B', index_col='bcr_patient_barcode', keep_default_na=False)
@@ -270,11 +272,11 @@ def get_MicroRNA(cancer_type, endpoint, groups, genders, FeatureMethod, FeatureT
     return add_race_CT(tumorTypes, df, endpoint, groups, genders, FeatureMethod, FeatureTrain)
 
 def add_race_CT(tumorTypes, df, endpoint, groups, genders, FeatureMethod, FeatureTrain):
-    
-    if FeatureTrain: # AE
-        
-        if FeatureMethod==2: # AE - Data for training
-        
+
+    if FeatureTrain: # AE or PCA
+
+        if FeatureMethod in [1, 2]: # AE or PCA - Data for training
+
             df = df.dropna(axis='columns')
             df = df.drop(columns=['TumorType'])
             # Packing the data
@@ -283,64 +285,64 @@ def add_race_CT(tumorTypes, df, endpoint, groups, genders, FeatureMethod, Featur
             data = {'X': X,
                     'Samples': df.index.values,
                     'FeatureName': list(df)}
-        
-    else: # data for execution of ML task
-    
-        df_list = [pd.read_excel(GADataPath, disease, usecols='A,E', index_col='Patient_ID', keep_default_na=False)
-                   for disease in tumorTypes]
-        df_race = pd.concat(df_list)
-        df_race = df_race[df_race['EIGENSTRAT'].isin(['EA', 'AA', 'EAA', 'NA', 'OA'])]
-        df_race['race'] = df_race['EIGENSTRAT']
-        df_race.loc[df_race['EIGENSTRAT'] == 'EA', 'race'] = 'WHITE'
-        df_race.loc[df_race['EIGENSTRAT'] == 'AA', 'race'] = 'BLACK'
-        df_race.loc[df_race['EIGENSTRAT'] == 'EAA', 'race'] = 'ASIAN'
-        df_race.loc[df_race['EIGENSTRAT'] == 'NA', 'race'] = 'NAT_A'
-        df_race.loc[df_race['EIGENSTRAT'] == 'OA', 'race'] = 'OTHER'
-        df_race = df_race.drop(columns=['EIGENSTRAT'])
-        
-        df_race = df_race[df_race['race'].isin(groups)]
-            
-        cols = 'B,E,Z,AA'
-        if endpoint == 'DSS':
-            cols = 'B,E,AB,AC'
-        elif endpoint == 'DFI':
-            cols = 'B,E,AD,AE'
-        elif endpoint == 'PFI':
-            cols = 'B,E,AF,AG'
-        df_C_T = pd.read_excel(OutcomeDataPath, 'TCGA-CDR', usecols=cols, index_col='bcr_patient_barcode')
-        
-        df_C_T.columns = ['G', 'E', 'T']
-        df_C_T = df_C_T[df_C_T['G'].isin(genders)]
-        df_C_T = df_C_T[df_C_T['E'].isin([0, 1])]
-        df_C_T = df_C_T.dropna()
-        df_C_T['C'] = 1 - df_C_T['E']
-        df_C_T.drop(columns=['E'], inplace=True)
-        
-        df = df.join(df_race, how='inner')
-        df = df.dropna(axis='columns')
-        df = df.join(df_C_T, how='inner')
-        
-        # Packing the data
-        C = df['C'].tolist()
-        R = df['race'].tolist()
-        G = df['G'].tolist()
-        T = df['T'].tolist()
-        E = [1 - c for c in C]
-        TumorType = df['TumorType'].tolist()
-        df = df.drop(columns=['C', 'race', 'T', 'G', 'TumorType'])
-        X = df.values
-        X = X.astype('float32')
-        
-        data = {'X': X,
-                'T': np.asarray(T, dtype=np.float32),
-                'C': np.asarray(C, dtype=np.int32),
-                'E': np.asarray(E, dtype=np.int32),
-                'R': np.asarray(R),
-                'G': np.asarray(G),
-                'Samples': df.index.values,
-                'FeatureName': list(df),
-                'TumorType': list(TumorType)}
-    
+            return data
+
+    # data for execution of ML task
+    df_list = [pd.read_excel(GADataPath, disease, usecols='A,E', index_col='Patient_ID', keep_default_na=False)
+               for disease in tumorTypes]
+    df_race = pd.concat(df_list)
+    df_race = df_race[df_race['EIGENSTRAT'].isin(['EA', 'AA', 'EAA', 'NA', 'OA'])]
+    df_race['race'] = df_race['EIGENSTRAT']
+    df_race.loc[df_race['EIGENSTRAT'] == 'EA', 'race'] = 'WHITE'
+    df_race.loc[df_race['EIGENSTRAT'] == 'AA', 'race'] = 'BLACK'
+    df_race.loc[df_race['EIGENSTRAT'] == 'EAA', 'race'] = 'ASIAN'
+    df_race.loc[df_race['EIGENSTRAT'] == 'NA', 'race'] = 'NAT_A'
+    df_race.loc[df_race['EIGENSTRAT'] == 'OA', 'race'] = 'OTHER'
+    df_race = df_race.drop(columns=['EIGENSTRAT'])
+
+    df_race = df_race[df_race['race'].isin(groups)]
+
+    cols = 'B,E,Z,AA'
+    if endpoint == 'DSS':
+        cols = 'B,E,AB,AC'
+    elif endpoint == 'DFI':
+        cols = 'B,E,AD,AE'
+    elif endpoint == 'PFI':
+        cols = 'B,E,AF,AG'
+    df_C_T = pd.read_excel(OutcomeDataPath, 'TCGA-CDR', usecols=cols, index_col='bcr_patient_barcode')
+
+    df_C_T.columns = ['G', 'E', 'T']
+    df_C_T = df_C_T[df_C_T['G'].isin(genders)]
+    df_C_T = df_C_T[df_C_T['E'].isin([0, 1])]
+    df_C_T = df_C_T.dropna()
+    df_C_T['C'] = 1 - df_C_T['E']
+    df_C_T.drop(columns=['E'], inplace=True)
+
+    df = df.join(df_race, how='inner')
+    df = df.dropna(axis='columns')
+    df = df.join(df_C_T, how='inner')
+
+    # Packing the data
+    C = df['C'].tolist()
+    R = df['race'].tolist()
+    G = df['G'].tolist()
+    T = df['T'].tolist()
+    E = [1 - c for c in C]
+    TumorType = df['TumorType'].tolist()
+    df = df.drop(columns=['C', 'race', 'T', 'G', 'TumorType'])
+    X = df.values
+    X = X.astype('float32')
+
+    data = {'X': X,
+            'T': np.asarray(T, dtype=np.float32),
+            'C': np.asarray(C, dtype=np.int32),
+            'E': np.asarray(E, dtype=np.int32),
+            'R': np.asarray(R),
+            'G': np.asarray(G),
+            'Samples': df.index.values,
+            'FeatureName': list(df),
+            'TumorType': list(TumorType)}
+
     return data
 
 def normalize_dataset(data):
