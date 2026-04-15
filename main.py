@@ -163,16 +163,16 @@ def run_task_with_config(args_dict, feature_method, autoencoder_settings, featur
     elif data_Category in ['GenderRace', 'Race']:
         if FeatureMethod in [0, 1]:
             TaskName = 'TCGA-' + data_Category + '-' + \
-                       cancer_type + '-' + groups[1] + '-' + groups[0] + omics_feature + '-' + endpoint + '-' + str(years) + 'YR' \
+                       cancer_type + '-' + groups[1] + '-' + groups[0] + '-' + omics_feature + '-' + endpoint + '-' + str(years) + 'YR' \
                        + '_' + FeatureMethodName + '-' + str(features_count) + 'Features'
         elif FeatureMethod == 2:
             TaskName = 'TCGA-' + data_Category + '-' + \
-                       cancer_type + '-' + groups[1] + '-' + groups[0] + omics_feature + '-' + endpoint + '-' + str(years) + 'YR' \
+                       cancer_type + '-' + groups[1] + '-' + groups[0] + '-' + omics_feature + '-' + endpoint + '-' + str(years) + 'YR' \
                        + '_' + FeatureMethodName + '-' + str(AutoencoderSettings) + \
                        '-' + str(features_count) + 'Features'
         else:
             TaskName = 'TCGA-' + data_Category + '-' + \
-                       cancer_type + '-' + groups[1] + '-' + groups[0] + omics_feature + '-' + endpoint + '-' + str(years) + 'YR' \
+                       cancer_type + '-' + groups[1] + '-' + groups[0] + '-' + omics_feature + '-' + endpoint + '-' + str(years) + 'YR' \
                        + '_' + FeatureMethodName
 
     print("The ML Task Name is: " + TaskName)
@@ -601,62 +601,97 @@ def run_all_feature_methods_parallel(args):
     print(f"Successful: {successful}, Failed: {failed}", flush=True)
     print(f"Check logs in: {log_dir}", flush=True)
 
+def run_task_from_config(task):
+    """Run a single task from task configuration dict (from tasks.json)."""
+    data_Category = task['data_Category']
+    DDP_group = task['DDP_group']
+    groups = ("WHITE", DDP_group)
+    genders = ("MALE", "FEMALE")
+
+    args_dict = {
+        'data_Category': data_Category,
+        'omicsConfiguration': 'combination',
+        'DDP_group': DDP_group,
+        'groups': groups,
+        'genders': genders,
+        'cancer_type': task['cancer_type'],
+        'omics_feature': task['omics_feature'],
+        'endpoint': task['endpoint'],
+        'years': task['years'],
+    }
+
+    run_task_with_config(
+        args_dict,
+        task['FeatureMethod'],
+        task['AutoencoderSettings'],
+        task['features_count']
+    )
+
+
 def main():
-    
+    import json
+
     # Argument parser setup
     parser = argparse.ArgumentParser(description="Process input arguments for ML task.")
 
-    # Adding arguments to the parser
+    # Task file mode (for SLURM arrays)
+    parser.add_argument("--task_file", type=str, help="Path to tasks.json file")
+    parser.add_argument("--task_index", type=int, help="Run single task by index")
+    parser.add_argument("--start_index", type=int, help="Start index for range of tasks")
+    parser.add_argument("--end_index", type=int, help="End index for range of tasks (exclusive)")
+
+    # Original CLI mode arguments
     parser.add_argument(
-        "--data_Category", type=str, choices=["GenderRace", "Race", "Gender"], required=True,
+        "--data_Category", type=str, choices=["GenderRace", "Race", "Gender"],
         help="Specify the count category: GenderRace, Race, Gender"
     )
     parser.add_argument(
-        "--omicsConfiguration", type=str, choices=["single", "combination"], required=True,
+        "--omicsConfiguration", type=str, choices=["single", "combination"],
         help="Specify if the data is single or combination of omics feature from the TCGA dataset"
     )
     parser.add_argument(
         "--DDP_group", type=str, nargs='?', default=None,
         help="Specify DDP group: BLACK, ASIAN, NAT_A. Required if data_Category is GenderRace or Race"
     )
-    parser.add_argument(
-        "--cancer_type", type=str,
-        help="Cancer Type"
-    )
-    parser.add_argument(
-        "--omics_feature", type=str,
-        help="Feature Type. \
-        If 'single', then it should be one of the following 'Protein', 'mRNA', 'Methylation', 'MicroRNA'. \
-        If 'combination', then it should be given as combination of 2/3/4 features as 'Feature1_Feature2_Feature3'. "
-    )
-    parser.add_argument(
-        "--endpoint", type=str,
-        help="Clinical Outcome Endpoint"
-    )
-    parser.add_argument(
-        "--years", type=int,
-        help="Event Time Threshold (years)"
-    )
-    parser.add_argument(
-        "--features_count", type=int, default=200,
-        help="No. of Features should be specified only if FeatureMethod value is 0, 1, or 2"
-    )
-    parser.add_argument(
-        "--FeatureMethod", type=int,
-        help="0 for pValue, 1 for PCA, 2 for AE, and None for No Feature Selection"
-    )
-    parser.add_argument(
-        "--AutoencoderSettings", type=int, default=1,
-        help="1 for L-L-MSE, 2 for R-L-BCE. This is required only if FeatureMethod is 2"
-    )
-    parser.add_argument(
-        "--run_all_feature_methods", action="store_true",
-        help="Run all feature methods (ANOVA, PCA, AE-1, AE-2) in parallel using multiprocessing"
-    )
-    
-    # Parse arguments
+    parser.add_argument("--cancer_type", type=str, help="Cancer Type")
+    parser.add_argument("--omics_feature", type=str, help="Feature Type")
+    parser.add_argument("--endpoint", type=str, help="Clinical Outcome Endpoint")
+    parser.add_argument("--years", type=int, help="Event Time Threshold (years)")
+    parser.add_argument("--features_count", type=int, default=200, help="No. of Features")
+    parser.add_argument("--FeatureMethod", type=int, help="0=pValue, 1=PCA, 2=AE")
+    parser.add_argument("--AutoencoderSettings", type=int, default=1, help="1=L-L-MSE, 2=R-L-BCE")
+    parser.add_argument("--run_all_feature_methods", action="store_true",
+        help="Run all feature methods in parallel")
+
     args = parser.parse_args()
-    
+
+    # TASK FILE MODE
+    if args.task_file:
+        with open(args.task_file, 'r') as f:
+            all_tasks = json.load(f)
+
+        if args.task_index is not None:
+            # Single task mode
+            print(f"Running task {args.task_index}")
+            run_task_from_config(all_tasks[args.task_index])
+            return
+
+        elif args.start_index is not None and args.end_index is not None:
+            # Range mode
+            print(f"Running tasks {args.start_index} to {args.end_index-1}")
+            for i in range(args.start_index, args.end_index):
+                print(f"\n{'='*60}\nTask {i}/{args.end_index-1}\n{'='*60}")
+                run_task_from_config(all_tasks[i])
+            return
+
+        else:
+            parser.error("--task_file requires --task_index OR (--start_index and --end_index)")
+
+    # ORIGINAL CLI MODE
+    # Validate required args for CLI mode
+    if not args.data_Category or not args.omicsConfiguration:
+        parser.error("--data_Category and --omicsConfiguration are required (or use --task_file)")
+
     # Conditional checks
     if args.data_Category in ["GenderRace", "Race"] and args.DDP_group is None:
         parser.error("DDP_group is required when data_Category is GenderRace or Race.")
