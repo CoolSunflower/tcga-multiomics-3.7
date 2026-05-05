@@ -1,0 +1,42 @@
+name: multiethnic_3_7
+
+channels:
+  - pytorch
+  - conda-forge
+  - defaults
+
+dependencies:
+  # Python
+  - python=3.7
+
+  # Core scientific stack
+  - numpy=1.21.5
+  - pandas=1.3.5
+  - scipy=1.7.3
+  - scikit-learn=1.0.2
+
+  # Excel support
+  - openpyxl
+  - xlrd=1.1.0
+
+  # Build tools
+  - pip
+  - setuptools
+  - wheel
+
+  # PyTorch (CPU version)
+  - pytorch=1.10.2
+  - cpuonly
+
+  # Pip-installed packages
+  - pip:
+      - Theano==1.0.3
+      - tensorflow==1.13.1
+      - tensorflow-estimator==1.13.0
+      - tensorboard==1.13.1
+      - keras==2.2.4
+      - Keras-Applications==1.0.8
+      - Keras-Preprocessing==1.1.0
+
+      # Lasagne from GitHub
+      - git+https://github.com/Lasagne/Lasagne.git
