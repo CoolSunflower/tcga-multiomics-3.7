@@ -15,11 +15,11 @@
 # Load any necessary modules
 module load anaconda3/2024.06
 source $ANACONDA3_SH
-conda activate multiethnic
+conda activate multiethnic_3_7
 
 echo "The environment has been activated."
 
-python -u multiomics/main.py --data_Category Race --omicsConfiguration combination --DDP_group BLACK --cancer_type PanGyn --endpoint OS --years 1 --features_count 100 --FeatureMethod 2 --omics_feature Protein_mRNA_MicroRNA_Methylation
+python -u tcga-multiomics-3.7/main.py --task_file tcga-multiomics-3.7/task_list_multiomics/tasks.json --task_index 0
 
 echo "The execution has been done."
 
