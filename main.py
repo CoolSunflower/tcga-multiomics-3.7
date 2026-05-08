@@ -603,30 +603,73 @@ def run_all_feature_methods_parallel(args):
 
 def run_task_from_config(task):
     """Run a single task from task configuration dict (from tasks.json)."""
-    data_Category = task['data_Category']
-    DDP_group = task['DDP_group']
-    groups = ("WHITE", DDP_group)
-    genders = ("MALE", "FEMALE")
+    import os
+    import sys
+    import traceback 
 
-    args_dict = {
-        'data_Category': data_Category,
-        'omicsConfiguration': 'combination',
-        'DDP_group': DDP_group,
-        'groups': groups,
-        'genders': genders,
-        'cancer_type': task['cancer_type'],
-        'omics_feature': task['omics_feature'],
-        'endpoint': task['endpoint'],
-        'years': task['years'],
-    }
-
-    run_task_with_config(
-        args_dict,
-        task['FeatureMethod'],
-        task['AutoencoderSettings'],
-        task['features_count']
+    task_id = task["id"]
+    log_dir = "tcga-multiomics-3.7/logs"
+    os.makedirs(log_dir, exist_ok=True)
+    task_name = (
+        f"task_{task_id}_"
+        f"{task['data_Category']}_"
+        f"{task['DDP_group']}_"
+        f"{task['cancer_type']}_"
+        f"{task['omics_feature']}_"
+        f"{task['endpoint']}_"
+        f"{task['years']}YR_"
+        f"FM{task['FeatureMethod']}_"
+        f"AE{task['AutoencoderSettings']}_"
+        f"FC{task['features_count']}"
     )
 
+    log_file = os.path.join(log_dir, f"{task_name}.log")
+    original_stdout = sys.stdout
+    original_stderr = sys.stderr
+
+    try:
+        with open(log_file, "w", buffering=1) as f:
+            sys.stdout = f
+            sys.stderr = f
+
+            print("=" * 80, flush=True)
+            print(f"STARTING TASK {task_id}", flush=True)
+            print(task_name, flush=True)
+            print("=" * 80, flush=True)
+
+            data_Category = task['data_Category']
+            DDP_group = task['DDP_group']
+            groups = ("WHITE", DDP_group)
+            genders = ("MALE", "FEMALE")
+
+            args_dict = {
+                'data_Category': data_Category,
+                'omicsConfiguration': 'combination',
+                'DDP_group': DDP_group,
+                'groups': groups,
+                'genders': genders,
+                'cancer_type': task['cancer_type'],
+                'omics_feature': task['omics_feature'],
+                'endpoint': task['endpoint'],
+                'years': task['years'],
+            }
+
+            run_task_with_config(
+                args_dict,
+                task['FeatureMethod'],
+                task['AutoencoderSettings'],
+                task['features_count']
+            )
+
+            print("=" * 80, flush=True)
+            print(f"FINISHED TASK {task_id}", flush=True)
+            print("=" * 80, flush=True)
+    except Exception:
+        with open(log_file, "a", buffering=1) as f:
+            traceback.print_exc(file=f)
+    finally:
+        sys.stdout = original_stdout
+        sys.stderr = original_stderr
 
 def main():
     import json
@@ -678,10 +721,12 @@ def main():
 
         elif args.start_index is not None and args.end_index is not None:
             # Range mode
-            print(f"Running tasks {args.start_index} to {args.end_index-1}")
-            for i in range(args.start_index, args.end_index):
-                print(f"\n{'='*60}\nTask {i}/{args.end_index-1}\n{'='*60}")
-                run_task_from_config(all_tasks[i])
+            print(f"Running tasks {args.start_index} to {args.end_index-1} in parallel")
+            tasks_to_run = all_tasks[args.start_index:args.end_index]
+            num_processes = min(multiprocessing.cpu_count(), len(tasks_to_run))
+            print(f"Using {num_processes} parallel processes", flush=True)
+            with multiprocessing.Pool(processes=num_processes) as pool:
+                pool.map(run_task_from_config, tasks_to_run)
             return
 
         else:

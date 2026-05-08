@@ -106,7 +106,7 @@ class MLP(object):
         self.L2 += (self.logRegressionLayer.W ** 2).sum()
         self.params.extend(self.logRegressionLayer.params)
 
-        self.regularizers = L1_reg * self.L1 + L1_reg * self.L2
+        self.regularizers = L1_reg * self.L1 + L2_reg * self.L2
         self.n_in = n_in
         self.learning_rate = learning_rate
         self.lr_decay = lr_decay
